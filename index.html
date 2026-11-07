@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pomodoro Timer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #f5f9ff;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --muted: #6b7c93;
+  --accent: #0066ff;
+  --border: #e0e4eb;
+  --radius: 12px;
+  --shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --border: #30363d;
+    --shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+}
+html,body{
+  margin:0;
+  padding:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:system-ui,Arial,sans-serif;
+  line-height:1.5;
+}
+body{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-height:100vh;
+}
+header{
+  padding:24px 16px;
+  text-align:center;
+}
+h1{
+  margin:0;
+  font-size:clamp(2rem,5vw,3.5rem);
+  font-weight:600;
+}
+main{
+  flex:1;
+  width:100%;
+  max-width:560px;
+  padding:0 16px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.timer-display{
+  background:var(--surface);
+  padding:32px;
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+  text-align:center;
+  margin-bottom:24px;
+  width:100%;
+}
+.timer-display h2{
+  margin:0;
+  font-size:1.25rem;
+  color:var(--muted);
+}
+.timer-display .time{
+  margin-top:8px;
+  font-size:4rem;
+  font-variant-numeric:tabular-nums;
+  font-weight:500;
+}
+.controls{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+button{
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  border-radius:var(--radius);
+  padding:12px 20px;
+  font-size:1rem;
+  cursor:pointer;
+  box-shadow:var(--shadow);
+  transition:background 150ms ease-in-out,transform 100ms ease;
+}
+button:hover{
+  background:#0052cc;
+}
+button:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+button:active{
+  transform:scale(0.97);
+}
+button:disabled{
+  background:#a0c4ff;
+  cursor:not-allowed;
+}
+footer{
+  padding:16px;
+  font-size:0.875rem;
+  color:var(--muted);
+  text-align:center;
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pomodoro Timer</h1>
+</header>
+<main>
+  <section class="timer-display" aria-live="polite">
+    <h2 id="mode-label">Work</h2>
+    <div class="time" id="time">25:00</div>
+  </section>
+  <section class="controls">
+    <button id="startBtn">Start</button>
+    <button id="pauseBtn" disabled>Pause</button>
+    <button id="resetBtn" disabled>Reset</button>
+    <button id="switchBtn">Switch Mode</button>
+  </section>
+</main>
+<footer>
+  Built with minimal & clean design – blue palette – follows your system theme.
+</footer>
+
+<script>
+(() => {
+  const MODE = {
+    WORK: {label:'Work', duration:25*60},
+    SHORT_BREAK: {label:'Short Break', duration:5*60},
+    LONG_BREAK: {label:'Long Break', duration:15*60}
+  };
+  const modeOrder = [MODE.WORK, MODE.SHORT_BREAK, MODE.WORK, MODE.SHORT_BREAK, MODE.WORK, MODE.LONG_BREAK];
+  let currentIndex = 0;
+  let remaining = modeOrder[currentIndex].duration;
+  let timerId = null;
+
+  const modeLabel = document.getElementById('mode-label');
+  const timeEl = document.getElementById('time');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const switchBtn = document.getElementById('switchBtn');
+
+  const format = sec => {
+    const m = String(Math.floor(sec/60)).padStart(2,'0');
+    const s = String(sec%60).padStart(2,'0');
+    return m+':'+s;
+  };
+
+  const updateDisplay = () => {
+    modeLabel.textContent = modeOrder[currentIndex].label;
+    timeEl.textContent = format(remaining);
+  };
+
+  const tick = () => {
+    if (remaining > 0) {
+      remaining--;
+      updateDisplay();
+    } else {
+      clearInterval(timerId);
+      timerId = null;
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      resetBtn.disabled = true;
+      // auto‑switch to next mode
+      switchMode();
+    }
+  };
+
+  const start = () => {
+    if (timerId) return;
+    timerId = setInterval(tick,1000);
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    resetBtn.disabled = false;
+  };
+
+  const pause = () => {
+    if (!timerId) return;
+    clearInterval(timerId);
+    timerId = null;
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+  };
+
+  const reset = () => {
+    clearInterval(timerId);
+    timerId = null;
+    remaining = modeOrder[currentIndex].duration;
+    updateDisplay();
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    resetBtn.disabled = true;
+  };
+
+  const switchMode = () => {
+    currentIndex = (currentIndex + 1) % modeOrder.length;
+    remaining = modeOrder[currentIndex].duration;
+    updateDisplay();
+    reset();
+  };
+
+  // Load persisted state if any
+  const loadState = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('pomodoroState'));
+      if (saved && saved.currentIndex !== undefined && saved.remaining !== undefined) {
+        currentIndex = saved.currentIndex;
+        remaining = saved.remaining;
+        updateDisplay();
+      }
+    } catch (_) {}
+  };
+  const saveState = () => {
+    const state = {currentIndex, remaining};
+    localStorage.setItem('pomodoroState', JSON.stringify(state));
+  };
+
+  // Event listeners
+  startBtn.addEventListener('click', start);
+  pauseBtn.addEventListener('click', pause);
+  resetBtn.addEventListener('click', reset);
+  switchBtn.addEventListener('click', () => {
+    switchMode();
+  });
+
+  // Persist every minute or on unload
+  setInterval(saveState, 60000);
+  window.addEventListener('beforeunload', saveState);
+
+  // Init
+  loadState();
+  updateDisplay();
+})();
+</script>
+</body>
+</html>
